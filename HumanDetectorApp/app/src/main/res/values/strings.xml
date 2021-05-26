@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">HumanDetector</string>
+    <string name="exit_btn">Exit</string>
+    <string name="search_btn">Search</string>
+    <string name="connect_btn">Connect</string>
+    <string name="connect_status_text_connect">Connected</string>
+    <string name="connect_status_text_disconnect">Disconnected</string>
+
+    <string name="toast_bluetooth_device_not_found">No paired devices found, please pair your serial BT device and try again</string>
+    <string name="toast_bluetooth_search_error">Bluetooth not found</string>
+    <string name="toast_connect_error">Bluetooth device is not selected</string>
+    <string name="toast_bluetooth_enable_success">Bluetooth Enabled successfully</string>
+    <string name="toast_bluetooth_enable_failed">Bluetooth couldn\'t be enabled</string>
+
+    <string name="toast_bluetooth_disconnect">Could not connect to device.Please turn on your Hardware</string>
+    <string name="toast_bluetooth_connect">Connected to device</string>
+</resources>
