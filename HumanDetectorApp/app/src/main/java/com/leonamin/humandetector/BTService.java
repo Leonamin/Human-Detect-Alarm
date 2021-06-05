@@ -228,7 +228,7 @@ public class BTService extends Service {
                         for (i = 0; i < buffer.length && buffer[i] != 0; i++) {
                         }
                         final String strInput = new String(buffer, 0, i);
-                        Log.d(TAG, "Serial Input: " + strInput);
+                        Log.d(TAG, "Serial Input: " + bytes2Ascii(buffer, i));
                         if (strInput.equals("1")) {
                             new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
                                 @Override
@@ -253,5 +253,28 @@ public class BTService extends Service {
         public void cancel() {
 
         }
+    }
+
+
+    public static String byte2Hex(byte b) {
+        return String.format(" 0x%02x ", b & 0xff);
+    }
+
+    public static String bytes2Ascii(byte[] bytes){
+        StringBuilder str= new StringBuilder();
+        str.append("[len=").append(bytes.length).append("],");
+        for(byte b : bytes){
+            str.append(byte2Hex(b));
+        }
+        return str.toString();
+    }
+
+    static String bytes2Ascii(byte[] bytes, int len){
+        StringBuilder str= new StringBuilder();
+        str.append("[len=").append(len).append("],");
+        for(int i=0;i<len;i++){
+            str.append(byte2Hex(bytes[i]));
+        }
+        return str.toString();
     }
 }
