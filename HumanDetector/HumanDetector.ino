@@ -12,7 +12,7 @@
 #define DETECT_EVENT            0x10
 #define DETECT_PHOTO_EVENT      0x11
 
-#define PROTOCOL_HEADER_SIZE    2
+#define PROTOCOL_HEADER_SIZE    5
 
 #define FILE_PHOTO "/photo.jpg"
 
@@ -54,7 +54,7 @@ typedef struct _DInput {
  */
 typedef struct _header {
     uint8_t event_type;
-    uint8_t data_length;
+    uint32_t data_length;
 } Protocol_h;
 
 /**
@@ -104,16 +104,51 @@ static void IRAM_ATTR detectIntr(void* arg) {
 
 /**
  * buf: Whole protocol
- * size: protocol data length
+ * size: protocol data length (4 BYTE)
  */
-void makePacketAndSend(int event_type, uint8_t* buf, int size) {
+void makePacketAndSend(int event_type, uint8_t* buf, uint32_t size) {
+    // TODO Sometimes memory allocation failed if size is larger than approx. 12000
     uint8_t *txPacket = (uint8_t*) malloc(size + PROTOCOL_HEADER_SIZE);
-	if (NULL == txPacket) 
+    if (NULL == txPacket) {
+        Serial.printf("makePacketAndSend::Memory allocation failed\n");
         return;
+    }
 	txPacket[0] = event_type;
-	txPacket[1] = size;
-	memcpy(&txPacket[PROTOCOL_HEADER_SIZE], buf, size);
-	SerialBT.write(txPacket, size + PROTOCOL_HEADER_SIZE);
+	txPacket[1] = (uint8_t) ((size >> 24) & 0xff);
+    txPacket[2] = (uint8_t) ((size >> 16) & 0xff);
+	txPacket[3] = (uint8_t) ((size >> 8) & 0xff);
+    txPacket[4] = (uint8_t) (size & 0xff);
+    
+    Serial.printf("makePacketAndSend::txPacket header\n");
+    for(int i = 0; i < PROTOCOL_HEADER_SIZE; i++) {
+        Serial.printf("0x%02x ", txPacket[i]);
+        if (0 == (i % 10)) {
+            Serial.println();
+        }
+    }
+    Serial.println();
+	
+    memcpy(&txPacket[PROTOCOL_HEADER_SIZE], buf, size);
+
+    // FIXME data sending was verified but if host can't receive data, it will try to send data permanently
+    uint32_t ptr = 0;
+    uint32_t sendPacketSize = size + PROTOCOL_HEADER_SIZE;
+    uint32_t 
+    while (true) {
+        if (sendPacketSize >= 1024) {
+            long ret = SerialBT.write(&txPacket[ptr], 1024);
+            Serial.printf("makePacketAndSend::write byte size = %d\n", ret);
+            sendPacketSize -= ret;
+            ptr += ret;
+        } else {
+            long ret = SerialBT.write(&txPacket[ptr], sendPacketSize);
+            Serial.printf("makePacketAndSend::write byte size = %d\n", ret);
+            break;
+        }
+    }
+    
+	// long ret = SerialBT.write(txPacket, size + PROTOCOL_HEADER_SIZE);
+    // Serial.printf("makePacketAndSend::write byte size = %d\n", ret);
 	free(txPacket);
 }
 
@@ -204,6 +239,9 @@ void loop() {
             protocol.protocol_header.data_length = 1;
             protocol.data = (uint8_t*) malloc(sizeof(uint8_t) * 1);
             protocol.data[0] = detect_count_num;
+
+            makePacketAndSend(protocol.protocol_header.event_type, protocol.data, protocol.protocol_header.data_length);
+            free(protocol.data);
         } else {
             protocol.protocol_header.event_type = DETECT_PHOTO_EVENT;
         
@@ -216,14 +254,16 @@ void loop() {
                 Serial.printf("Camera capture successed picture size: %d\n", fb->len);
                 //TODO 1 byte can only save to 255 but picture size is much larger than 1 byte
                 protocol.protocol_header.data_length = fb->len;
-                protocol.data = (uint8_t*) malloc(sizeof(uint8_t) * fb->len);
-                memcpy(protocol.data, fb->buf, fb->len);
-                esp_camera_fb_return(fb);
+                // memory waste
+                // protocol.data = (uint8_t*) malloc(sizeof(uint8_t) * fb->len);
+                // memcpy(protocol.data, fb->buf, fb->len);
             }
+
+            makePacketAndSend(protocol.protocol_header.event_type, fb->buf, protocol.protocol_header.data_length);
+            esp_camera_fb_return(fb);
+            free(protocol.data);
         }
 
-        makePacketAndSend(protocol.protocol_header.event_type, protocol.data, protocol.protocol_header.data_length);
-        free(protocol.data);
         // TODO SerialBT.available() is not working
         // if (SerialBT.available()) {
             
