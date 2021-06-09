@@ -14,25 +14,26 @@
 
 #define PROTOCOL_HEADER_SIZE    5
 
-#define FILE_PHOTO "/photo.jpg"
+#define PWDN_GPIO_NUM       32
+#define RESET_GPIO_NUM      -1
+#define XCLK_GPIO_NUM       0
+#define SIOD_GPIO_NUM       26
+#define SIOC_GPIO_NUM       27
 
-#define PWDN_GPIO_NUM     32
-#define RESET_GPIO_NUM    -1
-#define XCLK_GPIO_NUM      0
-#define SIOD_GPIO_NUM     26
-#define SIOC_GPIO_NUM     27
+#define Y9_GPIO_NUM         35
+#define Y8_GPIO_NUM         34
+#define Y7_GPIO_NUM         39
+#define Y6_GPIO_NUM         36
+#define Y5_GPIO_NUM         21
+#define Y4_GPIO_NUM         19
+#define Y3_GPIO_NUM         18
+#define Y2_GPIO_NUM         5
+#define VSYNC_GPIO_NUM      25
+#define HREF_GPIO_NUM       23
+#define PCLK_GPIO_NUM       22
 
-#define Y9_GPIO_NUM       35
-#define Y8_GPIO_NUM       34
-#define Y7_GPIO_NUM       39
-#define Y6_GPIO_NUM       36
-#define Y5_GPIO_NUM       21
-#define Y4_GPIO_NUM       19
-#define Y3_GPIO_NUM       18
-#define Y2_GPIO_NUM        5
-#define VSYNC_GPIO_NUM    25
-#define HREF_GPIO_NUM     23
-#define PCLK_GPIO_NUM     22
+#define SEND_SIZE       4096
+#define SEND_TIMEOUT    3000
 
 /////////////////////////////////
 
@@ -94,7 +95,6 @@ bool photo_enable = false;
 Protocol protocol;
 uint8_t detect_count_num = 0;
 
-
 static void IRAM_ATTR detectIntr(void* arg) {
     // TODO if arg is used, esp32 calls core error and reboot it must be changed
     // DInput* s = static_cast<DInput*>(arg);
@@ -107,13 +107,14 @@ static void IRAM_ATTR detectIntr(void* arg) {
  * size: protocol data length (4 BYTE)
  */
 void makePacketAndSend(int event_type, uint8_t* buf, uint32_t size) {
-    // TODO Sometimes memory allocation failed if size is larger than approx. 12000
+    // TODO Sometimes memory allocation failed if size is larger than approx. 120000
     uint8_t *txPacket = (uint8_t*) malloc(size + PROTOCOL_HEADER_SIZE);
     if (NULL == txPacket) {
         Serial.printf("makePacketAndSend::Memory allocation failed\n");
         return;
     }
-	txPacket[0] = event_type;
+
+    txPacket[0] = event_type;
 	txPacket[1] = (uint8_t) ((size >> 24) & 0xff);
     txPacket[2] = (uint8_t) ((size >> 16) & 0xff);
 	txPacket[3] = (uint8_t) ((size >> 8) & 0xff);
@@ -122,7 +123,7 @@ void makePacketAndSend(int event_type, uint8_t* buf, uint32_t size) {
     Serial.printf("makePacketAndSend::txPacket header\n");
     for(int i = 0; i < PROTOCOL_HEADER_SIZE; i++) {
         Serial.printf("0x%02x ", txPacket[i]);
-        if (0 == (i % 10)) {
+        if (0 == (i % 10) && (i != 0)) {
             Serial.println();
         }
     }
@@ -130,20 +131,45 @@ void makePacketAndSend(int event_type, uint8_t* buf, uint32_t size) {
 	
     memcpy(&txPacket[PROTOCOL_HEADER_SIZE], buf, size);
 
-    // FIXME data sending was verified but if host can't receive data, it will try to send data permanently
     uint32_t ptr = 0;
     uint32_t sendPacketSize = size + PROTOCOL_HEADER_SIZE;
-    uint32_t 
+
+    unsigned long timeoutCheck = 0;
+
     while (true) {
-        if (sendPacketSize >= 1024) {
-            long ret = SerialBT.write(&txPacket[ptr], 1024);
-            Serial.printf("makePacketAndSend::write byte size = %d\n", ret);
+        if (sendPacketSize >= SEND_SIZE) {
+            long ret = SerialBT.write(&txPacket[ptr], SEND_SIZE);
+            if (ret != 0) {
+                Serial.printf("makePacketAndSend::write byte size = %d\n", ret);
+                timeoutCheck = 0;
+            } else {
+                if (0 == timeoutCheck)
+                    timeoutCheck = millis();
+                else if (timeoutCheck <= millis() - SEND_TIMEOUT) {
+                    Serial.printf("makePacketAndSend::write timeout!\n");
+                    break;
+                }
+            }
             sendPacketSize -= ret;
             ptr += ret;
         } else {
             long ret = SerialBT.write(&txPacket[ptr], sendPacketSize);
-            Serial.printf("makePacketAndSend::write byte size = %d\n", ret);
-            break;
+            if (ret == sendPacketSize) {
+                Serial.printf("makePacketAndSend::data sending completed write byte size = %d\n", ret);
+                break;
+            } else if (0 == ret) {
+                if (0 == timeoutCheck)
+                    timeoutCheck = millis();
+                else if (timeoutCheck <= millis() - SEND_TIMEOUT) {
+                    Serial.printf("makePacketAndSend::write timeout!\n");
+                    break;
+                }
+            } else {
+                Serial.printf("makePacketAndSend::write byte size = %d\n", ret);
+                timeoutCheck = 0;
+                sendPacketSize -= ret;
+                ptr += ret;
+            }
         }
     }
     
