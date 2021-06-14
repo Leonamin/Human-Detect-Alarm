@@ -102,43 +102,116 @@ static void IRAM_ATTR detectIntr(void* arg) {
     pirSensor.state = true;
 }
 
+// void makePacketAndSend(int event_type, uint8_t* buf, uint32_t size) {
+//     // TODO Sometimes memory allocation failed if size is larger than approx. 120000
+//     uint8_t *txPacket = (uint8_t*) malloc(size + PROTOCOL_HEADER_SIZE);
+//     if (NULL == txPacket) {
+//         Serial.printf("makePacketAndSend::Memory allocation failed\n");
+//         return;
+//     }
+
+//     txPacket[0] = event_type;
+// 	txPacket[1] = (uint8_t) ((size >> 24) & 0xff);
+//     txPacket[2] = (uint8_t) ((size >> 16) & 0xff);
+// 	txPacket[3] = (uint8_t) ((size >> 8) & 0xff);
+//     txPacket[4] = (uint8_t) (size & 0xff);
+    
+//     Serial.printf("makePacketAndSend::txPacket header\n");
+//     for(int i = 0; i < PROTOCOL_HEADER_SIZE; i++) {
+//         Serial.printf("0x%02x ", txPacket[i]);
+//         if (0 == (i % 10) && (i != 0)) {
+//             Serial.println();
+//         }
+//     }
+//     Serial.println();
+	
+//     memcpy(&txPacket[PROTOCOL_HEADER_SIZE], buf, size);
+
+//     uint32_t ptr = 0;
+//     uint32_t sendPacketSize = size + PROTOCOL_HEADER_SIZE;
+
+//     unsigned long timeoutCheck = 0;
+
+//     while (true) {
+//         if (sendPacketSize >= SEND_SIZE) {
+//             long ret = SerialBT.write(&txPacket[ptr], SEND_SIZE);
+//             if (ret != 0) {
+//                 Serial.printf("makePacketAndSend::write byte size = %d\n", ret);
+//                 timeoutCheck = 0;
+//             } else {
+//                 if (0 == timeoutCheck)
+//                     timeoutCheck = millis();
+//                 else if (timeoutCheck <= millis() - SEND_TIMEOUT) {
+//                     Serial.printf("makePacketAndSend::write timeout!\n");
+//                     break;
+//                 }
+//             }
+//             sendPacketSize -= ret;
+//             ptr += ret;
+//         } else {
+//             long ret = SerialBT.write(&txPacket[ptr], sendPacketSize);
+//             if (ret == sendPacketSize) {
+//                 Serial.printf("makePacketAndSend::data sending completed write byte size = %d\n", ret);
+//                 break;
+//             } else if (0 == ret) {
+//                 if (0 == timeoutCheck)
+//                     timeoutCheck = millis();
+//                 else if (timeoutCheck <= millis() - SEND_TIMEOUT) {
+//                     Serial.printf("makePacketAndSend::write timeout!\n");
+//                     break;
+//                 }
+//             } else {
+//                 Serial.printf("makePacketAndSend::write byte size = %d\n", ret);
+//                 timeoutCheck = 0;
+//                 sendPacketSize -= ret;
+//                 ptr += ret;
+//             }
+//         }
+//     }
+    
+// 	// long ret = SerialBT.write(txPacket, size + PROTOCOL_HEADER_SIZE);
+//     // Serial.printf("makePacketAndSend::write byte size = %d\n", ret);
+// 	free(txPacket);
+// }
+
 /**
- * buf: Whole protocol
+ * event_type
+ * data: Whole protocol
  * size: protocol data length (4 BYTE)
  */
-void makePacketAndSend(int event_type, uint8_t* buf, uint32_t size) {
-    // TODO Sometimes memory allocation failed if size is larger than approx. 120000
-    uint8_t *txPacket = (uint8_t*) malloc(size + PROTOCOL_HEADER_SIZE);
-    if (NULL == txPacket) {
+void makePacketAndSend(int event_type, uint8_t* data, uint32_t size) {
+    uint8_t *headerPacket = (uint8_t*) malloc(PROTOCOL_HEADER_SIZE);
+    if (NULL == headerPacket) {
         Serial.printf("makePacketAndSend::Memory allocation failed\n");
         return;
     }
 
-    txPacket[0] = event_type;
-	txPacket[1] = (uint8_t) ((size >> 24) & 0xff);
-    txPacket[2] = (uint8_t) ((size >> 16) & 0xff);
-	txPacket[3] = (uint8_t) ((size >> 8) & 0xff);
-    txPacket[4] = (uint8_t) (size & 0xff);
+    headerPacket[0] = event_type;
+	headerPacket[1] = (uint8_t) ((size >> 24) & 0xff);
+    headerPacket[2] = (uint8_t) ((size >> 16) & 0xff);
+	headerPacket[3] = (uint8_t) ((size >> 8) & 0xff);
+    headerPacket[4] = (uint8_t) (size & 0xff);
     
     Serial.printf("makePacketAndSend::txPacket header\n");
     for(int i = 0; i < PROTOCOL_HEADER_SIZE; i++) {
-        Serial.printf("0x%02x ", txPacket[i]);
+        Serial.printf("0x%02x ", headerPacket[i]);
         if (0 == (i % 10) && (i != 0)) {
             Serial.println();
         }
     }
     Serial.println();
-	
-    memcpy(&txPacket[PROTOCOL_HEADER_SIZE], buf, size);
 
+    long ret = SerialBT.write(headerPacket, PROTOCOL_HEADER_SIZE);
+    Serial.printf("makePacketAndSend::Header sending write byte size = %d\n", ret);
+	
     uint32_t ptr = 0;
-    uint32_t sendPacketSize = size + PROTOCOL_HEADER_SIZE;
+    uint32_t sendPacketSize = size;
 
     unsigned long timeoutCheck = 0;
 
     while (true) {
         if (sendPacketSize >= SEND_SIZE) {
-            long ret = SerialBT.write(&txPacket[ptr], SEND_SIZE);
+            long ret = SerialBT.write(&data[ptr], SEND_SIZE);
             if (ret != 0) {
                 Serial.printf("makePacketAndSend::write byte size = %d\n", ret);
                 timeoutCheck = 0;
@@ -153,7 +226,7 @@ void makePacketAndSend(int event_type, uint8_t* buf, uint32_t size) {
             sendPacketSize -= ret;
             ptr += ret;
         } else {
-            long ret = SerialBT.write(&txPacket[ptr], sendPacketSize);
+            long ret = SerialBT.write(&data[ptr], sendPacketSize);
             if (ret == sendPacketSize) {
                 Serial.printf("makePacketAndSend::data sending completed write byte size = %d\n", ret);
                 break;
