@@ -12,14 +12,13 @@ import android.bluetooth.BluetoothSocket;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
-import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.Message;
 import android.util.Log;
-import android.widget.Button;
 import android.widget.Toast;
 
 import androidx.core.app.NotificationCompat;
@@ -27,7 +26,10 @@ import androidx.core.app.NotificationCompat;
 import java.io.IOException;
 import java.io.InputStream;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
+import java.util.List;
 import java.util.UUID;
 
 public class BTService extends Service {
@@ -41,11 +43,21 @@ public class BTService extends Service {
     private ConnectedThread mConnectedThread;
     private int mState;
 
+    private ProtocolParser mProtocolParser;
+
+    private final List<Byte> carray = Collections.synchronizedList(new ArrayList<Byte>());
+
     // Constants that indicate the current connection state
     public static final int STATE_NONE = 0;       // we're doing nothing
     public static final int STATE_DISCONNECTED = 1;     // now listening for incoming connections
     public static final int STATE_CONNECTING = 2; // now initiating an outgoing connection
     public static final int STATE_CONNECTED = 3;  // now connected to a remote device
+
+    private final int MSG_UART_RECEIVE = 1;
+
+    private final byte BT_CONNECT_EVENT = 0x01;
+    private final byte DETECT_EVENT = 0x10;
+    private final byte DETECT_PHOTO_EVENT = 0x11;
 
     public BTService() {
     }
@@ -61,6 +73,7 @@ public class BTService extends Service {
         Bundle b = intent.getExtras();
         mDevice = b.getParcelable(MainActivity.DEVICE_EXTRA);
         mDeviceUUID = UUID.fromString(b.getString(MainActivity.DEVICE_UUID));
+        mProtocolParser = new ProtocolParser(this);
 
         Log.d(TAG, "Ready");
 
@@ -218,32 +231,20 @@ public class BTService extends Service {
             try {
                 byte[] buffer = new byte[1024];
                 Log.i(TAG, "Running bluetooth data reading...");
-
+                int ch = 0;
                 while (mState == STATE_CONNECTED) {
-                    if (inputStream.available() > 0) {
-                        inputStream.read(buffer);
-
-                        // TODO add protocol and parser
-                        int i = 0;
-                        for (i = 0; i < buffer.length && buffer[i] != 0; i++) {
+                    // TODO Sometimes data receiving is not end and it can't catch timeout and wrong start data
+                    do {
+                        ch = inputStream.read();
+                        synchronized (carray) {
+                            carray.add((byte) ch);
+                            Message m = Message.obtain(mHandler, MSG_UART_RECEIVE);
+                            mHandler.sendMessage(m);
                         }
-                        final String strInput = new String(buffer, 0, i);
-                        Log.d(TAG, "Serial Input: " + bytes2Ascii(buffer, i));
-                        if (strInput.equals("1")) {
-                            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
-                                @Override
-                                public void run() {
-                                    //TODO Alarm must be change a notification with a message Handler
-//                                    msg("Human Detected!");
-                                    Log.e(TAG, "Detect!");
-                                    createNotification();
-                                }
-                            }, 0);
-                        }
-
-                    }
+                    } while (inputStream.available() > 0);
                 }
-            } catch (IOException e) {
+
+            } catch (Exception e) {
                 Log.e(TAG, "disconnected", e);
                 connectionLost();
                 e.printStackTrace();
@@ -255,25 +256,65 @@ public class BTService extends Service {
         }
     }
 
+    @SuppressLint("HandlerLeak")
+    public final Handler mHandler = new Handler(Looper.getMainLooper()) {
+        @Override
+        public void handleMessage(Message msg) {
+            switch (msg.what) {
+                case MSG_UART_RECEIVE:
+                    synchronized (carray) {
+                        while (!carray.isEmpty()) {
+                            byte receivedByte;
+                            receivedByte = carray.get(0);
+                            carray.remove(0);
+                            if (mProtocolParser.procDataReceive(receivedByte)) {
+                                switch (mProtocolParser.getEventType()) {
+                                    case BT_CONNECT_EVENT:
+                                        Log.i(TAG, "BT Connected");
+                                        break;
+                                    case DETECT_EVENT:
+                                        Log.i(TAG, "Human is detected");
+                                        break;
+                                    case DETECT_PHOTO_EVENT:
+                                        Log.i(TAG, "Human is detected with photo");
+                                        break;
+                                }
+                            }
+                        }
+                    }
+                    break;
+            }
+        }
+    };
+
 
     public static String byte2Hex(byte b) {
         return String.format(" 0x%02x ", b & 0xff);
     }
 
-    public static String bytes2Ascii(byte[] bytes){
-        StringBuilder str= new StringBuilder();
+    public static String bytes2Ascii(byte[] bytes) {
+        StringBuilder str = new StringBuilder();
         str.append("[len=").append(bytes.length).append("],");
-        for(byte b : bytes){
+        for (byte b : bytes) {
             str.append(byte2Hex(b));
         }
         return str.toString();
     }
 
-    static String bytes2Ascii(byte[] bytes, int len){
-        StringBuilder str= new StringBuilder();
+    static String bytes2Ascii(byte[] bytes, int len) {
+        StringBuilder str = new StringBuilder();
         str.append("[len=").append(len).append("],");
-        for(int i=0;i<len;i++){
+        for (int i = 0; i < len; i++) {
             str.append(byte2Hex(bytes[i]));
+        }
+        return str.toString();
+    }
+
+    public static String bytes2Ascii(List buf) {
+        StringBuilder str = new StringBuilder();
+        str.append("[len=").append(buf.size()).append("],");
+        for (int i = 0; i < buf.size(); i++) {
+            str.append(byte2Hex((byte) buf.get(i)));
         }
         return str.toString();
     }
