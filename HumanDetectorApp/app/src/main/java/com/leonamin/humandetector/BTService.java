@@ -11,9 +11,12 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
@@ -23,6 +26,8 @@ import android.widget.Toast;
 
 import androidx.core.app.NotificationCompat;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.text.SimpleDateFormat;
@@ -277,6 +282,11 @@ public class BTService extends Service {
                                         break;
                                     case DETECT_PHOTO_EVENT:
                                         Log.i(TAG, "Human is detected with photo");
+                                        try {
+                                            createImageFile(mProtocolParser.getData());
+                                        } catch (IOException e) {
+                                            e.printStackTrace();
+                                        }
                                         break;
                                 }
                             }
@@ -317,5 +327,20 @@ public class BTService extends Service {
             str.append(byte2Hex((byte) buf.get(i)));
         }
         return str.toString();
+    }
+
+    private void createImageFile(byte[] imageData) throws IOException {
+        @SuppressLint("SimpleDateFormat") String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        String imageFileName = "JPEG_" + timeStamp + "_";
+        File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
+        File image = File.createTempFile(
+                imageFileName,
+                ".jpg",
+                storageDir
+        );
+        FileOutputStream stream = new FileOutputStream(image.getAbsolutePath());
+        stream.write(imageData);
+        stream.close();
+        Log.i(TAG, "Image file is created on " + image.getAbsolutePath());
     }
 }

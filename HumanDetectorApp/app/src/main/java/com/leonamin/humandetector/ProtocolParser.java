@@ -25,12 +25,11 @@ public class ProtocolParser {
     class Protocol {
         private byte EVENT_TYPE;
         private int LENGTH;
-        private final List<Byte> receiveData;
+        private byte[] receiveData;
 
         Protocol() {
             EVENT_TYPE = 0x00;
             LENGTH = 0;
-            receiveData = Collections.synchronizedList(new ArrayList<Byte>());
         }
     }
 
@@ -42,7 +41,7 @@ public class ProtocolParser {
         return completeData.LENGTH;
     }
 
-    public List<Byte> getData() {
+    public byte[] getData() {
         return completeData.receiveData;
     }
 
@@ -83,20 +82,16 @@ public class ProtocolParser {
             headerReceiveCnt++;
             if (headerReceiveCnt == 5) {
                 Log.i(TAG, "Data size = " + mProtocol.LENGTH);
+                mProtocol.receiveData = new byte[mProtocol.LENGTH];
             }
             return false;
         }
-
-        mProtocol.receiveData.add(data);
-        dataReceiveCnt++;
-//        Log.i(TAG, "Data receive size = " + dataReceiveCnt);
+        mProtocol.receiveData[dataReceiveCnt++] = data;
         if (dataReceiveCnt == mProtocol.LENGTH) {
-            completeData.receiveData.clear();
             completeData = new Protocol();
             completeData.EVENT_TYPE = mProtocol.EVENT_TYPE;
             completeData.LENGTH = mProtocol.LENGTH;
-            completeData.receiveData.addAll(mProtocol.receiveData);
-            mProtocol.receiveData.clear();
+            completeData.receiveData = mProtocol.receiveData.clone();
             mProtocol = new Protocol(); // clear
             headerReceiveCnt = 0;
             dataReceiveCnt = 0;
