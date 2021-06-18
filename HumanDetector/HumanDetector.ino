@@ -8,11 +8,18 @@
 #error Bluetooth is not enabled! Please run `make menuconfig` to and enable it
 #endif
 
+#define STX                     0x5A
+#define ETX                     0xA5
 #define BT_CONNECT_EVENT        0x01
 #define DETECT_EVENT            0x10
 #define DETECT_PHOTO_EVENT      0x11
 
-#define PROTOCOL_HEADER_SIZE    5
+#define PROTOCOL_HEADER_SIZE    7
+
+#define SEND_SIZE       4096
+#define SEND_TIMEOUT    3000
+
+#define LED_GPIO_NUM        33
 
 #define PWDN_GPIO_NUM       32
 #define RESET_GPIO_NUM      -1
@@ -31,9 +38,6 @@
 #define VSYNC_GPIO_NUM      25
 #define HREF_GPIO_NUM       23
 #define PCLK_GPIO_NUM       22
-
-#define SEND_SIZE       4096
-#define SEND_TIMEOUT    3000
 
 /////////////////////////////////
 
@@ -80,9 +84,8 @@ BluetoothSerial SerialBT;
 
 DInput pirSensor = {GPIO_NUM_13, false};
 
-int ledPin = 33;
-unsigned long previousMS = 0;
-unsigned long periodMS = 0;
+unsigned long previous_ms = 0;
+unsigned long period_ms = 0;
 
 /////////////////////////////////
 
@@ -102,78 +105,6 @@ static void IRAM_ATTR detectIntr(void* arg) {
     pirSensor.state = true;
 }
 
-// void makePacketAndSend(int event_type, uint8_t* buf, uint32_t size) {
-//     // TODO Sometimes memory allocation failed if size is larger than approx. 120000
-//     uint8_t *txPacket = (uint8_t*) malloc(size + PROTOCOL_HEADER_SIZE);
-//     if (NULL == txPacket) {
-//         Serial.printf("makePacketAndSend::Memory allocation failed\n");
-//         return;
-//     }
-
-//     txPacket[0] = event_type;
-// 	txPacket[1] = (uint8_t) ((size >> 24) & 0xff);
-//     txPacket[2] = (uint8_t) ((size >> 16) & 0xff);
-// 	txPacket[3] = (uint8_t) ((size >> 8) & 0xff);
-//     txPacket[4] = (uint8_t) (size & 0xff);
-    
-//     Serial.printf("makePacketAndSend::txPacket header\n");
-//     for(int i = 0; i < PROTOCOL_HEADER_SIZE; i++) {
-//         Serial.printf("0x%02x ", txPacket[i]);
-//         if (0 == (i % 10) && (i != 0)) {
-//             Serial.println();
-//         }
-//     }
-//     Serial.println();
-	
-//     memcpy(&txPacket[PROTOCOL_HEADER_SIZE], buf, size);
-
-//     uint32_t ptr = 0;
-//     uint32_t sendPacketSize = size + PROTOCOL_HEADER_SIZE;
-
-//     unsigned long timeoutCheck = 0;
-
-//     while (true) {
-//         if (sendPacketSize >= SEND_SIZE) {
-//             long ret = SerialBT.write(&txPacket[ptr], SEND_SIZE);
-//             if (ret != 0) {
-//                 Serial.printf("makePacketAndSend::write byte size = %d\n", ret);
-//                 timeoutCheck = 0;
-//             } else {
-//                 if (0 == timeoutCheck)
-//                     timeoutCheck = millis();
-//                 else if (timeoutCheck <= millis() - SEND_TIMEOUT) {
-//                     Serial.printf("makePacketAndSend::write timeout!\n");
-//                     break;
-//                 }
-//             }
-//             sendPacketSize -= ret;
-//             ptr += ret;
-//         } else {
-//             long ret = SerialBT.write(&txPacket[ptr], sendPacketSize);
-//             if (ret == sendPacketSize) {
-//                 Serial.printf("makePacketAndSend::data sending completed write byte size = %d\n", ret);
-//                 break;
-//             } else if (0 == ret) {
-//                 if (0 == timeoutCheck)
-//                     timeoutCheck = millis();
-//                 else if (timeoutCheck <= millis() - SEND_TIMEOUT) {
-//                     Serial.printf("makePacketAndSend::write timeout!\n");
-//                     break;
-//                 }
-//             } else {
-//                 Serial.printf("makePacketAndSend::write byte size = %d\n", ret);
-//                 timeoutCheck = 0;
-//                 sendPacketSize -= ret;
-//                 ptr += ret;
-//             }
-//         }
-//     }
-    
-// 	// long ret = SerialBT.write(txPacket, size + PROTOCOL_HEADER_SIZE);
-//     // Serial.printf("makePacketAndSend::write byte size = %d\n", ret);
-// 	free(txPacket);
-// }
-
 /**
  * event_type
  * data: Whole protocol
@@ -186,11 +117,13 @@ void makePacketAndSend(int event_type, uint8_t* data, uint32_t size) {
         return;
     }
 
-    headerPacket[0] = event_type;
-	headerPacket[1] = (uint8_t) ((size >> 24) & 0xff);
-    headerPacket[2] = (uint8_t) ((size >> 16) & 0xff);
-	headerPacket[3] = (uint8_t) ((size >> 8) & 0xff);
-    headerPacket[4] = (uint8_t) (size & 0xff);
+    headerPacket[0] = STX;
+    headerPacket[1] = event_type;
+	headerPacket[2] = (uint8_t) ((size >> 24) & 0xff);
+    headerPacket[3] = (uint8_t) ((size >> 16) & 0xff);
+	headerPacket[4] = (uint8_t) ((size >> 8) & 0xff);
+    headerPacket[5] = (uint8_t) (size & 0xff);
+    headerPacket[6] = ETX;
     
     Serial.printf("makePacketAndSend::txPacket header\n");
     for(int i = 0; i < PROTOCOL_HEADER_SIZE; i++) {
@@ -248,12 +181,12 @@ void makePacketAndSend(int event_type, uint8_t* data, uint32_t size) {
     
 	// long ret = SerialBT.write(txPacket, size + PROTOCOL_HEADER_SIZE);
     // Serial.printf("makePacketAndSend::write byte size = %d\n", ret);
-	free(txPacket);
+	free(headerPacket);
 }
 
 void setupGpio() {
     pinMode(pirSensor.PIN, INPUT);
-    pinMode(ledPin, OUTPUT);
+    pinMode(LED_GPIO_NUM, OUTPUT);
 
     esp_err_t err;
     err = gpio_isr_handler_add(GPIO_NUM_13, &detectIntr, &pirSensor);
@@ -326,9 +259,9 @@ void loop() {
     if (pirSensor.state) {
         Serial.println("Detected");
 
-        digitalWrite(ledPin, LOW);
-        previousMS = millis();
-        periodMS = 1000;
+        digitalWrite(LED_GPIO_NUM, LOW);
+        previous_ms = millis();
+        period_ms = 1000;
         
         pirSensor.state = false;
         detect_count_num++;
@@ -368,8 +301,8 @@ void loop() {
             
         // }
     } else {
-        if (millis() - previousMS >= periodMS) {
-            digitalWrite(ledPin, HIGH);
+        if (millis() - previous_ms >= period_ms) {
+            digitalWrite(LED_GPIO_NUM, HIGH);
         }
     }
 }

@@ -6,6 +6,8 @@ import android.util.Log;
 public class ProtocolParser {
     private final String TAG = "HD/ProtocolParser";
 
+    private final int STX = 0x5A;
+    private final int ETX = 0xA5;
     private final byte BT_CONNECT_EVENT = 0x01;
     private final byte DETECT_EVENT = 0x10;
     private final byte DETECT_PHOTO_EVENT = 0x11;
@@ -18,13 +20,17 @@ public class ProtocolParser {
     private int dataReceiveCnt = 0;
 
     class Protocol {
+        private int STX;
         private byte EVENT_TYPE;
         private int LENGTH;
+        private int ETX;
         private byte[] receiveData;
 
         Protocol() {
+            STX = 0x00;
             EVENT_TYPE = 0x00;
             LENGTH = 0;
+            ETX = 0x00;
         }
     }
 
@@ -57,6 +63,12 @@ public class ProtocolParser {
      * if parsing ended, return true
      */
     public boolean procDataReceive(byte data) {
+        if (mProtocol.STX != STX) {
+            if (STX == ((int) data & 0xff)) {
+                mProtocol.STX = ((int) data & 0xff);
+                return false;
+            }
+        }
         if (mProtocol.EVENT_TYPE == 0x00) {
             switch (data) {
                 case BT_CONNECT_EVENT:
@@ -90,6 +102,12 @@ public class ProtocolParser {
                 }
             }
             return false;
+        }
+        if (mProtocol.ETX != ETX) {
+            if (ETX == ((int) data & 0xff)) {
+                mProtocol.ETX = ((int) data & 0xff);
+                return false;
+            }
         }
         mProtocol.receiveData[dataReceiveCnt++] = data;
         if (dataReceiveCnt == mProtocol.LENGTH) {

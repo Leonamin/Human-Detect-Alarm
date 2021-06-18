@@ -240,7 +240,8 @@ public class BTService extends Service {
                 Log.i(TAG, "Running bluetooth data reading...");
                 int ch = 0;
                 while (mState == STATE_CONNECTED) {
-                    // TODO Sometimes data receiving is not end and it can't catch timeout and wrong start data
+                    // TODO Sometime data receiving is not completed on one communication
+                    // if this situation occur, last some bytes data will be lost or received on next communication.
                     do {
                         if (!isDataReading) {       // Data reading start
                             isDataReading = true;
