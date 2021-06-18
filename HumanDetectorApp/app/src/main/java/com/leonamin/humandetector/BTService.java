@@ -4,15 +4,12 @@ import android.annotation.SuppressLint;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
-import android.app.ProgressDialog;
 import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
@@ -50,6 +47,9 @@ public class BTService extends Service {
 
     private ProtocolParser mProtocolParser;
 
+    private boolean isDataReading = false;
+    private long lastReadMs = 0;
+
     private final List<Byte> carray = Collections.synchronizedList(new ArrayList<Byte>());
 
     // Constants that indicate the current connection state
@@ -63,6 +63,8 @@ public class BTService extends Service {
     private final byte BT_CONNECT_EVENT = 0x01;
     private final byte DETECT_EVENT = 0x10;
     private final byte DETECT_PHOTO_EVENT = 0x11;
+
+    private final int DATA_READ_TIMEOUT_MS = 1000;
 
     public BTService() {
     }
@@ -240,6 +242,19 @@ public class BTService extends Service {
                 while (mState == STATE_CONNECTED) {
                     // TODO Sometimes data receiving is not end and it can't catch timeout and wrong start data
                     do {
+                        if (!isDataReading) {       // Data reading start
+                            isDataReading = true;
+                            lastReadMs = System.currentTimeMillis();
+                        } else {
+                            long currentMs = System.currentTimeMillis();
+                            if (currentMs - lastReadMs >= DATA_READ_TIMEOUT_MS) {       // If data reading is timeout
+                                synchronized (carray) {
+                                    carray.clear();
+                                    mProtocolParser.clearDataReceive();
+                                }
+                            }
+                            lastReadMs = currentMs;
+                        }
                         ch = inputStream.read();
                         synchronized (carray) {
                             carray.add((byte) ch);
@@ -273,6 +288,8 @@ public class BTService extends Service {
                             receivedByte = carray.get(0);
                             carray.remove(0);
                             if (mProtocolParser.procDataReceive(receivedByte)) {
+                                isDataReading = false;
+                                lastReadMs = System.currentTimeMillis();
                                 switch (mProtocolParser.getEventType()) {
                                     case BT_CONNECT_EVENT:
                                         Log.i(TAG, "BT Connected");

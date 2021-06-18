@@ -1,12 +1,7 @@
 package com.leonamin.humandetector;
 
 import android.content.Context;
-import android.os.Message;
 import android.util.Log;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 
 public class ProtocolParser {
     private final String TAG = "HD/ProtocolParser";
@@ -82,7 +77,17 @@ public class ProtocolParser {
             headerReceiveCnt++;
             if (headerReceiveCnt == 5) {
                 Log.i(TAG, "Data size = " + mProtocol.LENGTH);
-                mProtocol.receiveData = new byte[mProtocol.LENGTH];
+                try {
+                    mProtocol.receiveData = new byte[mProtocol.LENGTH];
+                } catch (OutOfMemoryError e) {
+                    Log.e(TAG, "Out of memory");
+                    mProtocol = new Protocol(); // clear
+                    headerReceiveCnt = 0;
+                } catch (Exception e) {
+                    Log.e(TAG, "Wrong data size");
+                    mProtocol = new Protocol(); // clear
+                    headerReceiveCnt = 0;
+                }
             }
             return false;
         }
@@ -100,5 +105,11 @@ public class ProtocolParser {
         }
 
         return false;
+    }
+
+    public void clearDataReceive() {
+        mProtocol = new Protocol();
+        headerReceiveCnt = 0;
+        dataReceiveCnt = 0;
     }
 }
