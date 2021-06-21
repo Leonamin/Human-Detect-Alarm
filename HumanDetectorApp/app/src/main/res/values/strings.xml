@@ -14,4 +14,6 @@
 
     <string name="toast_bluetooth_disconnect">Could not connect to device.Please turn on your Hardware</string>
     <string name="toast_bluetooth_connect">Connected to device</string>
+
+    <string name="device_list_device_name">%s</string>
 </resources>

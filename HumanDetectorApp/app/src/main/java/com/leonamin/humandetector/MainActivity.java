@@ -1,6 +1,9 @@
 package com.leonamin.humandetector;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.DefaultItemAnimator;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
@@ -35,7 +38,7 @@ import java.util.UUID;
 public class MainActivity extends AppCompatActivity {
     private Button searchBtn;
     private Button connectBtn;
-    private ListView deviceList;
+    private RecyclerView deviceList;
     private BluetoothAdapter mBTAdapter;
     private static final int BT_ENABLE_REQUEST = 10;
     private static final int SETTINGS = 20;
@@ -56,32 +59,35 @@ public class MainActivity extends AppCompatActivity {
 
         checkPermission();
 
-        searchBtn = (Button) findViewById(R.id.bl_device_search_btn);
-        connectBtn = (Button) findViewById(R.id.connect_btn);
+        searchBtn = findViewById(R.id.bl_device_search_btn);
+        connectBtn = findViewById(R.id.connect_btn);
 
-        deviceList = (ListView) findViewById(R.id.device_list);
+        deviceList = findViewById(R.id.device_list);
 
         if (savedInstanceState != null) {
             ArrayList<BluetoothDevice> list = savedInstanceState.getParcelableArrayList(DEVICE_LIST);
             if (list != null) {
                 initList(list);
-                MyAdapter adapter = (MyAdapter) deviceList.getAdapter();
+
+                DeviceListAdapter adapter = (DeviceListAdapter) deviceList.getAdapter();
+                LinearLayoutManager layoutManager = new LinearLayoutManager(this);
+                layoutManager.setOrientation(LinearLayoutManager.VERTICAL);
+                deviceList.setLayoutManager(layoutManager);
+                deviceList.setItemAnimator(new DefaultItemAnimator());
+
                 int selectedIndex = savedInstanceState.getInt(DEVICE_LIST_SELECTED);
                 if (selectedIndex != -1) {
                     adapter.setSelectedIndex(selectedIndex);
-                    connectBtn.setEnabled(true);
                 }
             } else {
-                initList(new ArrayList<BluetoothDevice>());
+                initList(new ArrayList<>());
             }
 
         } else {
-            initList(new ArrayList<BluetoothDevice>());
+            initList(new ArrayList<>());
         }
 
-        searchBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View arg0) {
+        searchBtn.setOnClickListener((View v) -> {
                 mBTAdapter = BluetoothAdapter.getDefaultAdapter();
 
                 if (mBTAdapter == null) {
@@ -92,14 +98,11 @@ public class MainActivity extends AppCompatActivity {
                 } else {
                     new SearchDevices().execute();
                 }
-            }
         });
 
-        connectBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View arg0) {
+        connectBtn.setOnClickListener((View v) -> {
                 try {
-                    BluetoothDevice device = ((MyAdapter) (deviceList.getAdapter())).getSelectedItem();
+                    BluetoothDevice device = ((DeviceListAdapter) (deviceList.getAdapter())).getSelectedItem();
                     Intent intent = new Intent(getApplicationContext(), Controlling.class);
                     intent.putExtra(DEVICE_EXTRA, device);
                     intent.putExtra(DEVICE_UUID, mDeviceUUID.toString());
@@ -108,7 +111,6 @@ public class MainActivity extends AppCompatActivity {
                 } catch (ArrayIndexOutOfBoundsException e) {
                     msg(R.string.toast_connect_error);
                 }
-            }
         });
 
 
@@ -168,16 +170,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initList(List<BluetoothDevice> objects) {
-        final MyAdapter adapter = new MyAdapter(getApplicationContext(), R.layout.list_item, R.id.lstContent, objects);
+        final DeviceListAdapter adapter = new DeviceListAdapter(getApplicationContext(), R.layout.list_item, R.id.lstContent, objects);
         deviceList.setAdapter(adapter);
-        deviceList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-
-            @Override
-            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                adapter.setSelectedIndex(position);
-                connectBtn.setEnabled(true);
-            }
-        });
+        LinearLayoutManager layoutManager = new LinearLayoutManager(this);
+        layoutManager.setOrientation(LinearLayoutManager.VERTICAL);
+        deviceList.setLayoutManager(layoutManager);
+        deviceList.setItemAnimator(new DefaultItemAnimator());
     }
 
     private class SearchDevices extends AsyncTask<Void, Void, List<BluetoothDevice>> {
@@ -185,11 +183,7 @@ public class MainActivity extends AppCompatActivity {
         @Override
         protected List<BluetoothDevice> doInBackground(Void... params) {
             Set<BluetoothDevice> pairedDevices = mBTAdapter.getBondedDevices();
-            List<BluetoothDevice> listDevices = new ArrayList<BluetoothDevice>();
-            for (BluetoothDevice device : pairedDevices) {
-                listDevices.add(device);
-            }
-            return listDevices;
+            return new ArrayList<>(pairedDevices);
 
         }
 
@@ -197,7 +191,7 @@ public class MainActivity extends AppCompatActivity {
         protected void onPostExecute(List<BluetoothDevice> listDevices) {
             super.onPostExecute(listDevices);
             if (listDevices.size() > 0) {
-                MyAdapter adapter = (MyAdapter) deviceList.getAdapter();
+                DeviceListAdapter adapter = (DeviceListAdapter) deviceList.getAdapter();
                 adapter.replaceItems(listDevices);
             } else {
                 msg(R.string.toast_bluetooth_device_not_found);
@@ -205,7 +199,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
     }
-
+    /*
     private class MyAdapter extends ArrayAdapter<BluetoothDevice> {
         private int selectedIndex;
         private Context context;
@@ -283,6 +277,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
     }
+     */
 
     private void checkPermission() {
 
