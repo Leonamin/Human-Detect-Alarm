@@ -11,22 +11,14 @@ import android.os.Build;
 import android.os.Bundle;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
-import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
-import android.graphics.Color;
 import android.os.AsyncTask;
 import android.preference.PreferenceManager;
 import android.util.Log;
-import android.view.LayoutInflater;
 import android.view.View;
-import android.view.ViewGroup;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
 import android.widget.Button;
-import android.widget.ListView;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import java.util.ArrayList;
@@ -170,7 +162,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initList(List<BluetoothDevice> objects) {
-        final DeviceListAdapter adapter = new DeviceListAdapter(getApplicationContext(), R.layout.list_item, R.id.lstContent, objects);
+        final DeviceListAdapter adapter = new DeviceListAdapter(getApplicationContext(), R.layout.item_device, R.id.item_devcie_name, objects);
         deviceList.setAdapter(adapter);
         LinearLayoutManager layoutManager = new LinearLayoutManager(this);
         layoutManager.setOrientation(LinearLayoutManager.VERTICAL);

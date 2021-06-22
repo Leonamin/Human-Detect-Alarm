@@ -24,7 +24,7 @@ public class DeviceListAdapter extends RecyclerView.Adapter<DeviceListAdapter.Vi
 
         public ViewHolder(View itemView) {
             super(itemView);
-            tv = itemView.findViewById(R.id.lstContent);
+            tv = itemView.findViewById(R.id.item_devcie_name);
         }
 
         public TextView getTv() {
@@ -42,7 +42,7 @@ public class DeviceListAdapter extends RecyclerView.Adapter<DeviceListAdapter.Vi
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.list_item, parent, false);
+                .inflate(R.layout.item_device, parent, false);
         return new ViewHolder(view);
     }
 
