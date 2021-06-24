@@ -22,6 +22,7 @@ import android.util.Log;
 import android.widget.Toast;
 
 import androidx.core.app.NotificationCompat;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -34,8 +35,14 @@ import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
+import static com.leonamin.humandetector.Controlling.EVENT_IMAGE;
+import static com.leonamin.humandetector.Controlling.EVENT_THUMBNAIL;
+import static com.leonamin.humandetector.Controlling.EVENT_TIMESTAMP;
+
 public class BTService extends Service {
     private static final String TAG = "HD/BTService";
+
+    private Context context;
 
     // member
     private UUID mDeviceUUID;
@@ -67,6 +74,12 @@ public class BTService extends Service {
     private final int DATA_READ_TIMEOUT_MS = 1000;
 
     public BTService() {
+    }
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        context = this;
     }
 
     @Override
@@ -301,7 +314,12 @@ public class BTService extends Service {
                                     case DETECT_PHOTO_EVENT:
                                         Log.i(TAG, "Human is detected with photo");
                                         try {
-                                            createImageFile(mProtocolParser.getData());
+                                            String path = createImageFile(mProtocolParser.getData());
+                                            Intent intent = new Intent("EventServiceFilter");
+                                            intent.putExtra(EVENT_TIMESTAMP, System.currentTimeMillis() / 1000);
+                                            intent.putExtra(EVENT_IMAGE, path);
+                                            intent.putExtra(EVENT_THUMBNAIL, path);
+                                            LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
                                         } catch (IOException e) {
                                             e.printStackTrace();
                                         }
@@ -347,7 +365,7 @@ public class BTService extends Service {
         return str.toString();
     }
 
-    private void createImageFile(byte[] imageData) throws IOException {
+    private String createImageFile(byte[] imageData) throws IOException {
         @SuppressLint("SimpleDateFormat") String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
         String imageFileName = "JPEG_" + timeStamp + "_";
         File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
@@ -359,6 +377,7 @@ public class BTService extends Service {
         FileOutputStream stream = new FileOutputStream(image.getAbsolutePath());
         stream.write(imageData);
         stream.close();
-        Log.i(TAG, "Image file is created on " + image.getAbsolutePath());
+
+        return image.getAbsolutePath();
     }
 }

@@ -65,6 +65,7 @@ public class ProtocolParser {
     public boolean procDataReceive(byte data) {
         if (mProtocol.STX != STX) {
             if (STX == ((int) data & 0xff)) {
+                Log.i(TAG, "STX");
                 mProtocol.STX = ((int) data & 0xff);
                 return false;
             }
@@ -105,6 +106,7 @@ public class ProtocolParser {
         }
         if (mProtocol.ETX != ETX) {
             if (ETX == ((int) data & 0xff)) {
+                Log.i(TAG, "ETX");
                 mProtocol.ETX = ((int) data & 0xff);
                 return false;
             }

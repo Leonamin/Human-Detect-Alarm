@@ -19,20 +19,20 @@
 
         <Button
             android:id="@+id/log_clear_btn"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
             android:layout_marginEnd="8dp"
-            android:layout_weight="8"
+            android:layout_weight="1"
             android:text="@string/clear_btn" />
 
         <Button
             android:id="@+id/exit_btn"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginLeft="8dp"
             android:layout_marginRight="8dp"
-            android:layout_weight="2"
+            android:layout_weight="3"
             android:text="@string/exit_btn" />
     </LinearLayout>
 

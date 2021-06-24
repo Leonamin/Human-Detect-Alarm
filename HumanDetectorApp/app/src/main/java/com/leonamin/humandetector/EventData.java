@@ -5,6 +5,12 @@ public class EventData {
     private String imagePath;
     private String thumbnailPath;
 
+    public EventData(long timeStamp, String imagePath, String thumbnailPath) {
+        this.timeStamp = timeStamp;
+        this.imagePath = imagePath;
+        this.thumbnailPath = thumbnailPath;
+    }
+
     public long getTimeStamp() {
         return timeStamp;
     }

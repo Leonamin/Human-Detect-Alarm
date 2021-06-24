@@ -1,11 +1,9 @@
 package com.leonamin.humandetector;
 
 import android.annotation.SuppressLint;
-import android.bluetooth.BluetoothDevice;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.Color;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -17,13 +15,13 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import java.io.File;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
 public class EventListAdapter extends RecyclerView.Adapter<EventListAdapter.ViewHolder> {
     private Context context;
     private List<EventData> itemList;
-    private int selectedColor = Color.parseColor("#abcdef");
     private int selectedIndex;
 
     class ViewHolder extends RecyclerView.ViewHolder {
@@ -51,7 +49,7 @@ public class EventListAdapter extends RecyclerView.Adapter<EventListAdapter.View
         }
     }
 
-    public EventListAdapter(Context ctx, int resource, int textViewResourceId, List<EventData> objects) {
+    public EventListAdapter(Context ctx, List<EventData> objects) {
         context = ctx;
         itemList = objects;
         selectedIndex = -1;
@@ -61,7 +59,7 @@ public class EventListAdapter extends RecyclerView.Adapter<EventListAdapter.View
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.item_device, parent, false);
+                .inflate(R.layout.item_event, parent, false);
         return new ViewHolder(view);
     }
 
@@ -115,6 +113,19 @@ public class EventListAdapter extends RecyclerView.Adapter<EventListAdapter.View
 
     public List<EventData> getEntireList() {
         return itemList;
+    }
+
+    public void addItem(EventData eventData) {
+        if (itemList.size() >= 20) {
+            itemList.remove(0);
+        }
+        itemList.add(eventData);
+        notifyDataSetChanged();
+    }
+
+    public void clearItems() {
+        itemList = new ArrayList<>();
+        notifyDataSetChanged();
     }
 
     private static String getTimestampToDate(long timestamp){
