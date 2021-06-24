@@ -12,7 +12,7 @@ public class ProtocolParser {
     private final byte DETECT_EVENT = 0x10;
     private final byte DETECT_PHOTO_EVENT = 0x11;
 
-    private final int MSG_DATA_PARSE_COMPLETED = 2;
+    private final int DATA_LENGTH_LIMIT = 140000;
 
     private Context mContext;
 
@@ -91,7 +91,12 @@ public class ProtocolParser {
             if (headerReceiveCnt == 5) {
                 Log.i(TAG, "Data size = " + mProtocol.LENGTH);
                 try {
-                    mProtocol.receiveData = new byte[mProtocol.LENGTH];
+                    if (mProtocol.LENGTH <= DATA_LENGTH_LIMIT) {
+                        mProtocol.receiveData = new byte[mProtocol.LENGTH];
+                    } else {
+                        mProtocol = new Protocol();
+                        headerReceiveCnt = 0;
+                    }
                 } catch (OutOfMemoryError e) {
                     Log.e(TAG, "Out of memory");
                     mProtocol = new Protocol(); // clear

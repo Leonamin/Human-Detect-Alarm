@@ -73,7 +73,8 @@ public class EventListAdapter extends RecyclerView.Adapter<EventListAdapter.View
         File image = new File(data.getThumbnailPath());
 
         if (image.exists()) {
-            Bitmap myBitmap = BitmapFactory.decodeFile(image.getAbsolutePath());
+//            Bitmap myBitmap = BitmapFactory.decodeFile(image.getAbsolutePath());
+            Bitmap myBitmap = getResizedBitmap(BitmapFactory.decodeFile(image.getAbsolutePath()), 200);
             holder.ivThumbnail.setImageBitmap(myBitmap);
         }
 
@@ -133,5 +134,20 @@ public class EventListAdapter extends RecyclerView.Adapter<EventListAdapter.View
         @SuppressLint("SimpleDateFormat") SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         sdf.setTimeZone(java.util.TimeZone.getTimeZone("GMT+9"));
         return sdf.format(date);
+    }
+
+    public Bitmap getResizedBitmap(Bitmap image, int maxSize) {
+        int width = image.getWidth();
+        int height = image.getHeight();
+
+        float bitmapRatio = (float)width / (float) height;
+        if (bitmapRatio > 0) {
+            width = maxSize;
+            height = (int) (width / bitmapRatio);
+        } else {
+            height = maxSize;
+            width = (int) (height * bitmapRatio);
+        }
+        return Bitmap.createScaledBitmap(image, width, height, true);
     }
 }
