@@ -57,7 +57,7 @@ public class BTService extends Service {
     private boolean isDataReading = false;
     private long lastReadMs = 0;
 
-    private final List<Byte> carray = Collections.synchronizedList(new ArrayList<Byte>());
+    private final List<Byte> carray = Collections.synchronizedList(new ArrayList<>());
 
     // Constants that indicate the current connection state
     public static final int STATE_NONE = 0;       // we're doing nothing
@@ -256,19 +256,20 @@ public class BTService extends Service {
                     // TODO Sometime data receiving is not completed on one communication
                     // if this situation occur, last some bytes data will be lost or received on next communication.
                     do {
-                        if (!isDataReading) {       // Data reading start
-                            isDataReading = true;
-                            lastReadMs = System.currentTimeMillis();
-                        } else {
-                            long currentMs = System.currentTimeMillis();
-                            if (currentMs - lastReadMs >= DATA_READ_TIMEOUT_MS) {       // If data reading is timeout
-                                synchronized (carray) {
-                                    carray.clear();
-                                    mProtocolParser.clearDataReceive();
-                                }
-                            }
-                            lastReadMs = currentMs;
-                        }
+//                        if (!isDataReading) {       // Data reading start
+//                            isDataReading = true;
+//                            lastReadMs = System.currentTimeMillis();
+//                        } else {
+//                            long currentMs = System.currentTimeMillis();
+//                            if (currentMs - lastReadMs >= DATA_READ_TIMEOUT_MS) {       // If data reading is timeout
+//                                Log.w(TAG, "Data reading timeout!");
+//                                synchronized (carray) {
+//                                    carray.clear();
+//                                    mProtocolParser.clearDataReceive();
+//                                }
+//                            }
+//                            lastReadMs = currentMs;
+//                        }
                         ch = inputStream.read();
                         synchronized (carray) {
                             carray.add((byte) ch);
