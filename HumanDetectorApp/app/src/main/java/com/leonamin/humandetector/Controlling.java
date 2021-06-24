@@ -90,7 +90,7 @@ public class Controlling extends AppCompatActivity {
     }
 
     private void initList(List<EventData> objects) {
-        final EventListAdapter adapter = new EventListAdapter(getApplicationContext(), objects);
+        final EventListAdapter adapter = new EventListAdapter(this, objects);
         eventList.setAdapter(adapter);
         LinearLayoutManager layoutManager = new LinearLayoutManager(this);
         layoutManager.setOrientation(LinearLayoutManager.VERTICAL);
